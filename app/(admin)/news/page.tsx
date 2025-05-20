@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type NewsItem = {
   id: number;
@@ -12,15 +13,18 @@ type NewsItem = {
 
 export default function NewsPage() {
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchNews = async () => {
       const res = await fetch("/api/news");
       const data = await res.json();
-      setNewsList(data.map((n: any) => ({
-        ...n,
-        photoUrl: Array.isArray(n.photoUrl) ? n.photoUrl : JSON.parse(n.photoUrl)
-      })));
+      setNewsList(
+        data.map((n: any) => ({
+          ...n,
+          photoUrl: Array.isArray(n.photoUrl) ? n.photoUrl : JSON.parse(n.photoUrl),
+        }))
+      );
     };
 
     fetchNews();
@@ -28,7 +32,15 @@ export default function NewsPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Новини</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Новини</h1>
+        <button
+          onClick={() => router.push("/news/create")}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+        >
+          ➕ Додати новину
+        </button>
+      </div>
 
       {newsList.length === 0 && <p>Новини відсутні</p>}
 
@@ -53,6 +65,32 @@ export default function NewsPage() {
                 ))}
               </div>
             )}
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => router.push(`/admin/news/edit/${news.id}`)}
+                className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+              >
+                🖊️ Редагувати
+              </button>
+              <button
+                onClick={async () => {
+                  if (confirm("Ти впевнений, що хочеш видалити цю новину?")) {
+                    const res = await fetch(`/api/news/${news.id}`, {
+                      method: "DELETE",
+                    });
+                    if (res.ok) {
+                      setNewsList((prev) => prev.filter((n) => n.id !== news.id));
+                    } else {
+                      alert("❌ Не вдалося видалити новину");
+                    }
+                  }
+                }}
+                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+              >
+                🗑️ Видалити
+              </button>
+            </div>
           </div>
         ))}
       </div>

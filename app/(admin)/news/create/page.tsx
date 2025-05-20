@@ -6,7 +6,26 @@ export default function CreateNewsPage() {
   const [heading, setHeading] = useState("");
   const [publicationDate, setPublicationDate] = useState("");
   const [description, setDescription] = useState("");
-  const [photoUrl, setPhotoUrl] = useState([""]);
+  const [photoUrl, setPhotoUrl] = useState<string[]>([]); // правильна назва
+
+  // ✅ Обробник файлів
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data.url) {
+      setPhotoUrl((prev) => [...prev, data.url]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +46,7 @@ export default function CreateNewsPage() {
       setHeading("");
       setPublicationDate("");
       setDescription("");
-      setPhotoUrl([""]);
+      setPhotoUrl([]);
     } else {
       alert("❌ Помилка при створенні новини");
     }
@@ -67,12 +86,11 @@ export default function CreateNewsPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium">Фото (URL через кому)</label>
+          <label className="block text-sm font-medium">Фото (завантажити з комп'ютера)</label>
           <input
-            type="text"
-            value={photoUrl.join(",")}
-            onChange={(e) => setPhotoUrl(e.target.value.split(","))}
-            className="w-full border px-3 py-2 rounded"
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
           />
         </div>
         <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
