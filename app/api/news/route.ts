@@ -22,10 +22,16 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const news = await prisma.news.findMany({
+    const newsRaw = await prisma.news.findMany({
       orderBy: { publicationDate: "desc" },
     });
-
+    
+    // Перетворюємо JSON-рядки назад у масиви
+    const news = newsRaw.map(item => ({
+      ...item,
+      photoUrl: item.photoUrl ? JSON.parse(item.photoUrl) : []
+    }));
+    
     return NextResponse.json(news);
   } catch (error) {
     console.error("❌ Error fetching news:", error);

@@ -11,9 +11,15 @@ datasource db {
 }
 
 model Link {
-  id   Int    @id @default(autoincrement())
-  url  String
-  name String
+  id        Int      @id @default(autoincrement())
+  title     String
+  url       String?
+  content   String?   
+  year      Int?
+  subject   String?
+  category  String
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 }
 
 model Staff {
@@ -68,10 +74,11 @@ model SubjStaff {
 }
 
 model News {
-  id              Int     @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   heading         String
-  publicationDate DateTime @map("publication_date")
-  description     String
-  photoUrl        String   @default("[]")
+  publicationDate DateTime @default(now())
+  description     String    
+  photoUrl        String?   
+  createdAt       DateTime? @default(now())
+  updatedAt       DateTime? @updatedAt
 }
-
