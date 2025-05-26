@@ -3,7 +3,11 @@ import type { NextConfig } from "next";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone', 
   reactStrictMode: true,
+  experimental: {
+    serverActions: true,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
