@@ -1,13 +1,13 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const error = searchParams?.get('error');
+  // const searchParams = useSearchParams();
+  // const error = searchParams?.get('error');
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -33,11 +33,11 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-sm">
         <h2 className="text-2xl font-bold mb-6">Вхід</h2>
         
-        {error && (
+        {/* {error && (
           <div className="mb-4 text-red-500 text-sm">
             Невірний логін або пароль
           </div>
-        )}
+        )} */}
 
         <input
           type="text"

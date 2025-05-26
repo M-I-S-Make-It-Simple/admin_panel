@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request,
+  context: { params: Promise<{ id?: string }> }) {
   try {
     const newsRaw = await prisma.news.findMany({
       orderBy: { publicationDate: "desc" },

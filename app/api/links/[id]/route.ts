@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { NextRequest } from "next/server";
+
+function getIdFromRequest(req: NextRequest): number | null {
+  const idStr = req.nextUrl.pathname.split("/").pop();
+  const id = idStr ? Number(idStr) : NaN;
+  return isNaN(id) ? null : id;
+}
 
 // DELETE - видалення посилання
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const id = Number(params.id);
-  if (isNaN(id)) {
+export async function DELETE(req: NextRequest) {
+  const id = getIdFromRequest(req);
+  if (id === null) {
     return NextResponse.json({ message: "Некоректний ID" }, { status: 400 });
   }
 
@@ -21,12 +25,9 @@ export async function DELETE(
 }
 
 // PATCH - редагування посилання
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const id = Number(params.id);
-  if (isNaN(id)) {
+export async function PATCH(request: NextRequest) {
+  const id = getIdFromRequest(request);
+  if (id === null) {
     return NextResponse.json({ message: "Некоректний ID" }, { status: 400 });
   }
 
