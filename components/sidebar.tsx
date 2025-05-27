@@ -18,7 +18,7 @@ export default function Sidebar() {
       title: "📰 Контент",
       links: [
         { href: "/news", label: "Новини" },
-        { href: "/teachers", label: "Вчителі" },
+        { href: "/staff", label: "Вчителі" },
       ],
     },
     {

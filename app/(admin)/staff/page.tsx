@@ -8,7 +8,19 @@ export default function StaffPage() {
   useEffect(() => {
     fetch('/api/staff')
       .then(res => res.json())
-      .then(data => setStaff(data));
+      .then(data => {
+        console.log("📥 Отримано staff:", data);
+        if (Array.isArray(data)) {
+          setStaff(data);
+        } else {
+          console.error("❌ Очікував масив staff, а отримав:", data);
+          setStaff([]);
+        }
+      })
+      .catch(err => {
+        console.error("❌ Помилка при запиті staff:", err);
+        setStaff([]);
+      });
   }, []);
 
   const deleteStaff = async (id: number) => {
@@ -23,7 +35,7 @@ export default function StaffPage() {
         {staff.map(person => (
           <li key={person.id} className="mb-2 flex justify-between items-center">
             <div>
-              <strong>{person.fullname}</strong> — {person.position}
+              <strong>{person.fullName}</strong> — {person.position}
             </div>
             <button
               className="bg-red-500 text-white px-3 py-1 rounded"
