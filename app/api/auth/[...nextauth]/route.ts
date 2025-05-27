@@ -7,10 +7,9 @@ const handler = NextAuth({
       name: "Credentials",
       credentials: {
         username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // 🔐 Тут можна підключити реальний бекенд або залишити мок-логіку
         if (
           credentials?.username === "admin" &&
           credentials?.password === "admin123"
@@ -18,16 +17,16 @@ const handler = NextAuth({
           return { id: "1", name: "Admin" };
         }
         return null;
-      }
-    })
+      },
+    }),
   ],
+  session: {
+    strategy: "jwt",
+  },
+  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/login",
   },
-  session: {
-    strategy: "jwt",
-  }
-  
 });
 
 export { handler as GET, handler as POST };

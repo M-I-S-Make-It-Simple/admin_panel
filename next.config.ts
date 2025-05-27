@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
-// export default nextConfig;
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  output: 'standalone', 
+const nextConfig: NextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   experimental: {
-    serverActions: true,
+    // Видалив serverActions: true - воно включене за замовчуванням в Next.js 14+
+    // Або можеш використовувати новий формат:
+    // serverActions: {
+    //   allowedOrigins: ['localhost:3000', '*.vercel.app']
+    // }
   },
   typescript: {
     ignoreBuildErrors: true,
@@ -16,4 +19,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig;
