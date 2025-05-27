@@ -73,18 +73,18 @@ export default function NewsPage() {
                 🖊️ Редагувати
               </button>
               <button
-                // onClick={async () => {
-                //   if (confirm("Ти впевнений, що хочеш видалити цю новину?")) {
-                //     const res = await fetch(`/api/news/${news.id}`, {
-                //       method: "DELETE",
-                //     });
-                //     if (res.ok) {
-                //       setNewsList((prev) => prev.filter((n) => n.id !== news.id));
-                //     } else {
-                //       alert("❌ Не вдалося видалити новину");
-                //     }
-                //   }
-                // }}
+                onClick={async () => {
+                  if (confirm("Ти впевнений, що хочеш видалити цю новину?")) {
+                    const res = await fetch(`/api/news/${news.id}`, {
+                      method: "DELETE",
+                    });
+                    if (res.ok) {
+                      setNewsList((prev) => prev.filter((n) => n.id !== news.id));
+                    } else {
+                      alert("❌ Не вдалося видалити новину");
+                    }
+                  }
+                }}
                 className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
               >
                 🗑️ Видалити
