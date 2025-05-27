@@ -24,7 +24,7 @@ export async function GET(request: Request,
   context: { params: Promise<{ id?: string }> }) {
   try {
     const newsRaw = await prisma.news.findMany({
-      orderBy: { publicationDate: "desc" },
+      orderBy: { createdAt: "desc" },
     });
     
     // Перетворюємо JSON-рядки назад у масиви
