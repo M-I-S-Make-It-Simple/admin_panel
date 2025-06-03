@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(request: Request, context: { params: Promise<{ id?: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id?: string }> }): Promise<NextResponse<{photoUrl: any; id: number; createdAt: Date | null; updatedAt: Date | null}[]>> {
   try {
     const newsRaw = await prisma.news.findMany({
       orderBy: { createdAt: 'desc' },
@@ -57,9 +57,36 @@ export async function GET(request: Request, context: { params: Promise<{ id?: st
       })(),
     }));
 
-    return NextResponse.json(news);
+    const response = NextResponse.json(news);
+
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    return response;
   } catch (error) {
-    console.error("❌ Error fetching news:", error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: "Помилка при отриманні новин" }, { status: 500 });
+    console.error("message: '❌ Error fetching news:', error instanceof Error ? error.message : error");
+
+    const errorResponse = NextResponse.json(
+        { error: "Помилка при отриманні новин" },
+        { status: 500 }
+    );
+
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    return errorResponse as any;
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }
