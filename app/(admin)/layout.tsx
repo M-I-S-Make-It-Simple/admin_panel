@@ -2,6 +2,7 @@ import "@/styles/globals.css";
 import { ReactNode } from "react";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
+import "@uploadthing/react/styles.css";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (

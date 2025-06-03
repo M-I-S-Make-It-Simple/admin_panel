@@ -6,19 +6,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log("📦 Дані для створення новини:", body);
 
-    // Перевірка обов'язкових полів
     if (!body.heading || !body.publicationDate || !body.description) {
       return NextResponse.json({ error: "Відсутні обов'язкові поля" }, { status: 400 });
     }
 
-    // Обробка дати
-    const date = new Date(body.publicationDate);
+    const date = new Date(`${body.publicationDate}T00:00:00`);
     if (isNaN(date.getTime())) {
       return NextResponse.json({ error: "Невалідна дата публікації" }, { status: 400 });
     }
 
-    // Обробка photoUrl
-    const photoUrlArray = Array.isArray(body.photoUrl) ? body.photoUrl : [];
+    const photoUrlArray =
+      Array.isArray(body.photoUrl) && body.photoUrl.every((url: any) => typeof url === 'string')
+        ? body.photoUrl
+        : [];
 
     const news = await prisma.news.create({
       data: {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(news, { status: 201 });
 
   } catch (error) {
-    console.error("❌ Error creating news:", error);
+    console.error("❌ Error creating news:", error instanceof Error ? error.message : error);
     return NextResponse.json(
       { error: (error as Error).message || "Щось пішло не так" },
       { status: 500 }
@@ -40,23 +40,26 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
-export async function GET(request: Request,
-  context: { params: Promise<{ id?: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id?: string }> }) {
   try {
     const newsRaw = await prisma.news.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
     });
-    
-    // Перетворюємо JSON-рядки назад у масиви
-    const news = newsRaw.map(item => ({
+
+    const news = newsRaw.map((item) => ({
       ...item,
-      photoUrl: item.photoUrl ? JSON.parse(item.photoUrl) : []
+      photoUrl: (() => {
+        try {
+          return item.photoUrl ? JSON.parse(item.photoUrl) : [];
+        } catch {
+          return [];
+        }
+      })(),
     }));
-    
+
     return NextResponse.json(news);
   } catch (error) {
-    console.error("❌ Error fetching news:", error);
+    console.error("❌ Error fetching news:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Помилка при отриманні новин" }, { status: 500 });
   }
 }

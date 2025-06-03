@@ -1,5 +1,6 @@
 'use client';
 import { useState } from "react";
+import { ImageUploader } from "@/components/ImageUploader";
 
 export default function CreateNewsPage() {
   const [heading, setHeading] = useState("");
@@ -145,18 +146,14 @@ export default function CreateNewsPage() {
         </div>
         
         <div>
-          <div>
-            <label className="block text-sm font-medium">Додати фото</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="w-full border px-3 py-2 rounded"
-              disabled={isLoading}
-            />
-          </div>
-          
-          {/* Preview завантажених фото */}
+          <label className="block text-sm font-medium">Додати фото</label>
+          {/* Компонент UploadThing */}
+          <ImageUploader
+            onUploadComplete={(url) => {
+              setPhotoUrl((prev) => [...prev, url]);
+            }}
+          />
+          {/* Прев’ю завантажених фото */}
           {photoUrl.length > 0 && (
             <div className="grid grid-cols-2 gap-2 mt-2">
               {photoUrl.map((url, idx) => (
@@ -178,7 +175,7 @@ export default function CreateNewsPage() {
             </div>
           )}
         </div>
-        
+
         <button 
           type="submit" 
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-blue-300"
