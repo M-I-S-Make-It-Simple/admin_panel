@@ -1,5 +1,6 @@
 'use client';
 import { useState } from "react";
+import { ImageUploader } from "@/components/ImageUploader";
 
 export default function CreateNewsPage() {
   const [heading, setHeading] = useState("");
@@ -10,56 +11,76 @@ export default function CreateNewsPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Покращений обробник файлів з обробкою помилок
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!res.ok) {
-        throw new Error(`Помилка завантаження: ${res.status}`);
-      }
-      
-      // Безпечна обробка відповіді
-      const text = await res.text();
-      let data;
-      
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (parseError) {
-        console.error("Помилка парсингу JSON:", parseError);
-        throw new Error(`Неправильний формат відповіді: ${text.substring(0, 100)}`);
-      }
-      
-      if (data.url) {
-        setPhotoUrl((prev) => [...prev, data.url]);
-      } else {
-        throw new Error("URL не отримано в відповіді");
-      }
-    } catch (error) {
-      console.error("Помилка:", error);
-      setError(error instanceof Error ? error.message : "Невідома помилка");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0];
+  //   if (!file) return;
+  //
+  //   setIsLoading(true);
+  //   setError(null);
+  //
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("file", file);
+  //
+  //     const res = await fetch("/api/upload", {
+  //       method: "POST",
+  //       body: formData,
+  //     });
+  //
+  //     if (!res.ok) {
+  //       throw new Error(`Помилка завантаження: ${res.status}`);
+  //     }
+  //
+  //     // Безпечна обробка відповіді
+  //     const text = await res.text();
+  //     let data;
+  //
+  //     try {
+  //       data = text ? JSON.parse(text) : {};
+  //     } catch (parseError) {
+  //       console.error("Помилка парсингу JSON:", parseError);
+  //       throw new Error(`Неправильний формат відповіді: ${text.substring(0, 100)}`);
+  //     }
+  //
+  //     if (data.url) {
+  //       setPhotoUrl((prev) => [...prev, data.url]);
+  //     } else {
+  //       throw new Error("URL не отримано в відповіді");
+  //     }
+  //   } catch (error) {
+  //     console.error("Помилка:", error);
+  //     setError(error instanceof Error ? error.message : "Невідома помилка");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    
+
     try {
+      // Конвертуємо всі фото в base64 перед відправкою
+      const photoBase64Array = await Promise.all(
+          photoUrl.map(async (url) => {
+            // Якщо це вже base64, повертаємо як є
+            if (url.startsWith('data:')) {
+              return url;
+            }
+
+            // Якщо це URL, завантажуємо і конвертуємо
+            try {
+              const response = await fetch(url);
+              const blob = await response.blob();
+              return await convertBlobToBase64(blob);
+            } catch (error) {
+              console.error('Помилка конвертації фото:', error);
+              return url; // Повертаємо оригінальний URL якщо не вдалось конвертувати
+            }
+          })
+      );
+
       const res = await fetch("/api/news", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,15 +88,15 @@ export default function CreateNewsPage() {
           heading,
           publicationDate,
           description,
-          photoUrl,
+          photoUrl: photoBase64Array, // Відправляємо base64
         }),
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(`Помилка сервера: ${res.status}. ${errorText}`);
       }
-      
+
       // Безпечна обробка відповіді
       const text = await res.text();
       if (text) {
@@ -86,7 +107,7 @@ export default function CreateNewsPage() {
           // Але продовжуємо, оскільки res.ok = true
         }
       }
-      
+
       alert("✅ Новину створено!");
       setHeading("");
       setPublicationDate("");
@@ -99,6 +120,23 @@ export default function CreateNewsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const convertBlobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const localUrl = URL.createObjectURL(file);
+    setPhotoUrl(prev => [...prev, localUrl]);
   };
 
   return (
@@ -145,18 +183,14 @@ export default function CreateNewsPage() {
         </div>
         
         <div>
-          <div>
-            <label className="block text-sm font-medium">Додати фото</label>
-            <input
-              type="file"
+          <label className="block text-sm font-medium">Додати фото</label>
+          {/* Компонент UploadThing */}
+          <input
+              type='file'
+              onChange={handleLocalFileSelect}
               accept="image/*"
-              onChange={handleFileUpload}
-              className="w-full border px-3 py-2 rounded"
-              disabled={isLoading}
-            />
-          </div>
-          
-          {/* Preview завантажених фото */}
+          />
+          {/* Прев’ю завантажених фото */}
           {photoUrl.length > 0 && (
             <div className="grid grid-cols-2 gap-2 mt-2">
               {photoUrl.map((url, idx) => (
@@ -178,7 +212,7 @@ export default function CreateNewsPage() {
             </div>
           )}
         </div>
-        
+
         <button 
           type="submit" 
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-blue-300"
