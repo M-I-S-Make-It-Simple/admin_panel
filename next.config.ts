@@ -18,8 +18,23 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-  domains: ["uploadthing.com"],
-  }
+    // domains: ["uploadthing.com"], // Тимчасово вимкнено
+  },
+  // Налаштування для продакшену
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+  // Налаштування для статичного експорту (якщо потрібно)
+  trailingSlash: false,
+  // Налаштування для API routes
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: '/api/:path*',
+      },
+    ];
+  },
 }
 
 export default nextConfig;

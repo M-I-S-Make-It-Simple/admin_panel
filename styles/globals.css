@@ -19,6 +19,19 @@
   }
 }
 
+/* Глобальні стилі для позиціонування фото на сторінці методичних заходів */
+.eventImage img[data-position="top"] {
+  object-position: center top !important;
+}
+
+.eventImage img[data-position="bottom"] {
+  object-position: center bottom !important;
+}
+
+.eventImage img[data-position="center"] {
+  object-position: center center !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
