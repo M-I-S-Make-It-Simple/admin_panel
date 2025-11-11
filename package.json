@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "init-admin": "node scripts/init-admin.js"
+    "init-admin": "node scripts/auth/init-admin.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^6.8.2",

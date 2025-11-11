@@ -1,267 +1,272 @@
 'use client';
 
-import { useState } from 'react';
+import { ChangeEvent, FormEvent, useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PASSWORD_REQUIREMENTS, validatePassword } from '@/lib/auth/password';
+
+type Step = 'verify' | 'update';
+
+type FormState = {
+  currentUsername: string;
+  currentPassword: string;
+  newUsername: string;
+  newPassword: string;
+};
+
+type RequestState = {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  message: string;
+};
+
+const INITIAL_FORM_STATE: FormState = {
+  currentUsername: '',
+  currentPassword: '',
+  newUsername: '',
+  newPassword: ''
+};
+
+const STEPS_COPY: Record<Step, string> = {
+  verify: 'Спочатку підтвердіть поточні дані для входу',
+  update: 'Тепер введіть нові дані для входу'
+};
 
 export default function ChangePasswordPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1); // 1 - підтвердження поточних даних, 2 - введення нових
-  const [formData, setFormData] = useState({
-    currentUsername: '',
-    currentPassword: '',
-    newPassword: '',
-    newUsername: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [step, setStep] = useState<Step>('verify');
+  const [formState, setFormState] = useState<FormState>(INITIAL_FORM_STATE);
+  const [verificationState, setVerificationState] = useState<RequestState>({ status: 'idle', message: '' });
+  const [updateState, setUpdateState] = useState<RequestState>({ status: 'idle', message: '' });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
+  const isLoading = verificationState.status === 'loading' || updateState.status === 'loading';
+
+  const passwordValidationError = useMemo(() => {
+    if (formState.newPassword.length === 0) {
+      return '';
+    }
+
+    const validation = validatePassword(formState.newPassword);
+    return validation.valid ? '' : validation.error;
+  }, [formState.newPassword]);
+
+  const resetMessages = useCallback(() => {
+    setVerificationState({ status: 'idle', message: '' });
+    setUpdateState({ status: 'idle', message: '' });
+  }, []);
+
+  const handleInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setFormState(prev => ({
       ...prev,
       [name]: value
     }));
-    // Очищаємо повідомлення при зміні полів
-    setMessage('');
-    setError('');
-  };
+    resetMessages();
+  }, [resetMessages]);
 
-  const handleVerifyCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
-    setError('');
+  const handleVerifyCredentials = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    resetMessages();
+    setVerificationState({ status: 'loading', message: '' });
 
     try {
       const response = await fetch('/api/auth/verify-credentials', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: formData.currentUsername,
-          password: formData.currentPassword
-        }),
+          username: formState.currentUsername.trim(),
+          password: formState.currentPassword
+        })
       });
 
-      const data = await response.json();
+      const payload = await response.json();
 
-      if (response.ok && data.success) {
-        setMessage('Поточні дані підтверджені! Тепер ви можете ввести нові дані.');
-        setStep(2);
-      } else {
-        setError(data.error || 'Неправильний логін або пароль');
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Неправильний логін або пароль');
       }
+
+      setVerificationState({
+        status: 'success',
+        message: 'Поточні дані підтверджені. Тепер ви можете ввести нові дані.'
+      });
+      setStep('update');
     } catch (error) {
       console.error('Помилка при перевірці даних:', error);
-      setError('Помилка з\'єднання з сервером');
-    } finally {
-      setIsLoading(false);
+      const message = error instanceof Error ? error.message : 'Помилка з\'єднання з сервером';
+      setVerificationState({ status: 'error', message });
     }
-  };
+  }, [formState.currentPassword, formState.currentUsername, resetMessages]);
 
-  const handleChangeData = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
-    setError('');
+  const handleChangeData = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    resetMessages();
+
+    if (passwordValidationError) {
+      setUpdateState({ status: 'error', message: passwordValidationError });
+      return;
+    }
+
+    setUpdateState({ status: 'loading', message: '' });
 
     try {
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword,
-          newUsername: formData.newUsername
-        }),
+          currentPassword: formState.currentPassword,
+          newPassword: formState.newPassword,
+          newUsername: formState.newUsername.trim() || undefined
+        })
       });
 
-      const data = await response.json();
+      const payload = await response.json();
 
-      if (response.ok && data.success) {
-        setMessage('Дані успішно змінено!');
-        setFormData({
-          currentUsername: '',
-          currentPassword: '',
-          newPassword: '',
-          newUsername: ''
-        });
-        setStep(1);
-      } else {
-        setError(data.error || 'Помилка при зміні даних');
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Помилка при зміні даних');
       }
+
+      setUpdateState({
+        status: 'success',
+        message: payload.message || 'Дані успішно змінено!'
+      });
+      setFormState(INITIAL_FORM_STATE);
+      setStep('verify');
     } catch (error) {
       console.error('Помилка при зміні даних:', error);
-      setError('Помилка з\'єднання з сервером');
-    } finally {
-      setIsLoading(false);
+      const message = error instanceof Error ? error.message : 'Помилка з\'єднання з сервером';
+      setUpdateState({ status: 'error', message });
     }
-  };
+  }, [formState.currentPassword, formState.newPassword, formState.newUsername, passwordValidationError, resetMessages]);
+
+  const goBackToPreviousPage = useCallback(() => {
+    if (step === 'update') {
+      setStep('verify');
+      resetMessages();
+      return;
+    }
+
+    router.back();
+  }, [resetMessages, router, step]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-        <div className="text-center mb-6">
+      <div className="mx-auto max-w-md rounded-lg bg-white p-6 shadow-md">
+        <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-gray-900">Зміна даних входу</h1>
-          <p className="text-gray-600 mt-2">
-            {step === 1 
-              ? 'Спочатку підтвердіть поточні дані для входу' 
-              : 'Тепер введіть нові дані для входу'
-            }
-          </p>
-          <div className="flex justify-center mt-4">
-            <div className="flex space-x-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
-              }`}>
-                1
-              </div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
-              }`}>
-                2
-              </div>
+          <p className="mt-2 text-gray-600">{STEPS_COPY[step]}</p>
+
+          <div className="mt-4 flex justify-center">
+            <div className="flex items-center space-x-3">
+              <StepBadge number={1} active />
+              <div className={`h-0.5 w-12 ${step === 'update' ? 'bg-blue-600' : 'bg-gray-300'}`} />
+              <StepBadge number={2} active={step === 'update'} />
             </div>
           </div>
         </div>
 
-        {step === 1 ? (
-          <form onSubmit={handleVerifyCredentials} className="space-y-4">
-          {/* Повідомлення про успіх */}
-          {message && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-              {message}
-            </div>
-          )}
+        {step === 'verify' ? (
+          <form className="space-y-4" onSubmit={handleVerifyCredentials}>
+            <Alert state={verificationState} />
 
-          {/* Повідомлення про помилку */}
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-
-          {/* Поточний логін */}
-          <div>
-            <label htmlFor="currentUsername" className="block text-sm font-medium text-gray-700 mb-1">
-              Поточний логін
-            </label>
-            <input
-              type="text"
-              id="currentUsername"
-              name="currentUsername"
-              value={formData.currentUsername}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-
-          {/* Поточний пароль */}
-          <div>
-            <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Поточний пароль
-            </label>
-            <input
-              type="password"
-              id="currentPassword"
-              name="currentPassword"
-              value={formData.currentPassword}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-
-
-          {/* Кнопки для кроку 1 */}
-          <div className="flex space-x-4 pt-4">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-            >
-              Назад
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Перевірка...' : 'Підтвердити'}
-            </button>
-          </div>
-        </form>
-        ) : (
-          <form onSubmit={handleChangeData} className="space-y-4">
-            {/* Повідомлення про успіх */}
-            {message && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                {message}
-              </div>
-            )}
-
-            {/* Повідомлення про помилку */}
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
-
-            {/* Новий логін */}
             <div>
-              <label htmlFor="newUsername" className="block text-sm font-medium text-gray-700 mb-1">
-                Новий логін (за бажанням)
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="currentUsername">
+                Поточний логін
               </label>
               <input
-                type="text"
-                id="newUsername"
-                name="newUsername"
-                value={formData.newUsername}
+                autoComplete="username"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                id="currentUsername"
+                name="currentUsername"
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                minLength={3}
-                placeholder="Залиште пустим, щоб не змінювати"
-              />
-              <p className="text-xs text-gray-500 mt-1">Мінімум 3 символи</p>
-            </div>
-
-            {/* Новий пароль */}
-            <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Новий пароль
-              </label>
-              <input
-                type="password"
-                id="newPassword"
-                name="newPassword"
-                value={formData.newPassword}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
-                minLength={8}
+                type="text"
+                value={formState.currentUsername}
               />
-              <p className="text-xs text-gray-500 mt-1">Мінімум 8 символів</p>
             </div>
 
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="currentPassword">
+                Поточний пароль
+              </label>
+              <input
+                autoComplete="current-password"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                id="currentPassword"
+                name="currentPassword"
+                onChange={handleInputChange}
+                required
+                type="password"
+                value={formState.currentPassword}
+              />
+            </div>
 
-            {/* Кнопки для кроку 2 */}
             <div className="flex space-x-4 pt-4">
               <button
+                className="flex-1 rounded-md bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                onClick={goBackToPreviousPage}
                 type="button"
-                onClick={() => setStep(1)}
-                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 Назад
               </button>
               <button
-                type="submit"
+                className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isLoading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="submit"
+              >
+                {isLoading ? 'Перевірка...' : 'Підтвердити'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form className="space-y-4" onSubmit={handleChangeData}>
+            <Alert state={updateState} />
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="newUsername">
+                Новий логін (за бажанням)
+              </label>
+              <input
+                autoComplete="username"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                id="newUsername"
+                minLength={3}
+                name="newUsername"
+                onChange={handleInputChange}
+                placeholder="Залиште пустим, щоб не змінювати"
+                type="text"
+                value={formState.newUsername}
+              />
+              <p className="mt-1 text-xs text-gray-500">Мінімум 3 символи</p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="newPassword">
+                Новий пароль
+              </label>
+              <input
+                autoComplete="new-password"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                id="newPassword"
+                minLength={8}
+                name="newPassword"
+                onChange={handleInputChange}
+                required
+                type="password"
+                value={formState.newPassword}
+              />
+              <PasswordRequirements validationError={passwordValidationError} />
+            </div>
+
+            <div className="flex space-x-4 pt-4">
+              <button
+                className="flex-1 rounded-md bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                onClick={goBackToPreviousPage}
+                type="button"
+              >
+                Назад
+              </button>
+              <button
+                className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isLoading}
+                type="submit"
               >
                 {isLoading ? 'Зміна...' : 'Змінити дані'}
               </button>
@@ -269,6 +274,62 @@ export default function ChangePasswordPage() {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+function StepBadge({ number, active }: { number: number; active?: boolean }) {
+  return (
+    <div
+      className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+        active ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
+      }`}
+    >
+      {number}
+    </div>
+  );
+}
+
+function Alert({ state }: { state: RequestState }) {
+  if (state.status === 'idle') {
+    return null;
+  }
+
+  const baseClasses = 'rounded px-4 py-3 text-sm';
+
+  if (state.status === 'loading') {
+    return (
+      <div className={`${baseClasses} border border-blue-300 bg-blue-50 text-blue-700`}>
+        Зачекайте, виконується запит...
+      </div>
+    );
+  }
+
+  if (state.status === 'success') {
+    return (
+      <div className={`${baseClasses} border border-green-400 bg-green-100 text-green-700`}>
+        {state.message}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${baseClasses} border border-red-400 bg-red-100 text-red-700`}>
+      {state.message || 'Сталася невідома помилка'}
+    </div>
+  );
+}
+
+function PasswordRequirements({ validationError }: { validationError: string }) {
+  return (
+    <div className="mt-2 space-y-1 text-xs text-gray-500">
+      <p>Вимоги до пароля:</p>
+      <ul className="list-disc space-y-0.5 pl-5">
+        {PASSWORD_REQUIREMENTS.map(requirement => (
+          <li key={requirement}>{requirement}</li>
+        ))}
+      </ul>
+      {validationError ? <p className="text-red-600">{validationError}</p> : null}
     </div>
   );
 }

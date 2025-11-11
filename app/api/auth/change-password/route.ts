@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, hashPassword, verifyPassword } from '@/lib/auth';
+import { verifyToken, hashPassword, verifyPassword, validatePasswordStrength } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+
+// Простий rate limiting (в пам'яті) - для продакшену краще використовувати Redis
+const passwordChangeAttempts = new Map<number, { count: number; lastAttempt: number }>();
+const MAX_ATTEMPTS = 5; // Максимум спроб за період
+const ATTEMPT_WINDOW = 15 * 60 * 1000; // 15 хвилин
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +32,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { currentPassword, newPassword, newUsername } = await request.json();
+    const body = await request.json();
+    const currentPassword = typeof body?.currentPassword === 'string' ? body.currentPassword : '';
+    const newPassword = typeof body?.newPassword === 'string' ? body.newPassword : '';
+    const rawNewUsername = typeof body?.newUsername === 'string' ? body.newUsername : undefined;
+    const newUsername = rawNewUsername?.trim();
     console.log('👤 API: Зміна пароля для користувача:', payload.username);
 
     // Валідація вхідних даних
@@ -48,15 +57,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-
-    if (newPassword.length < 8) {
-      console.log('❌ API: Пароль занадто короткий');
-      return NextResponse.json(
-        { error: 'Новий пароль повинен містити мінімум 8 символів' },
-        { status: 400 }
-      );
-    }
-
     // Отримуємо користувача з бази даних
     const user = await prisma.adminUser.findUnique({
       where: { id: payload.userId }
@@ -70,14 +70,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Rate limiting: перевірка кількості спроб
+    const now = Date.now();
+    const userAttempts = passwordChangeAttempts.get(user.id);
+    
+    if (userAttempts) {
+      // Якщо минуло достатньо часу, скидаємо лічильник
+      if (now - userAttempts.lastAttempt > ATTEMPT_WINDOW) {
+        passwordChangeAttempts.delete(user.id);
+      } else if (userAttempts.count >= MAX_ATTEMPTS) {
+        console.log(`⚠️ API: Занадто багато спроб змінити пароль для користувача ${user.id}`);
+        return NextResponse.json(
+          { error: `Занадто багато спроб. Спробуйте пізніше (через ${Math.ceil((ATTEMPT_WINDOW - (now - userAttempts.lastAttempt)) / 60000)} хвилин)` },
+          { status: 429 }
+        );
+      }
+    }
+
+    // Валідація складності нового пароля
+    const passwordValidation = validatePasswordStrength(newPassword);
+    if (!passwordValidation.valid) {
+      console.log('❌ API: Пароль не відповідає вимогам складності');
+      return NextResponse.json(
+        { error: passwordValidation.error },
+        { status: 400 }
+      );
+    }
+
     // Перевіряємо поточний пароль
     console.log('🔐 API: Перевірка поточного пароля...');
     const isCurrentPasswordValid = await verifyPassword(currentPassword, user.password);
     
     if (!isCurrentPasswordValid) {
-      console.log('❌ API: Неправильний поточний пароль');
+      // Збільшуємо лічильник невдалих спроб
+      const currentAttempts = passwordChangeAttempts.get(user.id) || { count: 0, lastAttempt: now };
+      passwordChangeAttempts.set(user.id, {
+        count: currentAttempts.count + 1,
+        lastAttempt: now
+      });
+      
+      console.log(`⚠️ API: Неправильний поточний пароль для користувача ${user.id}. Спроба ${currentAttempts.count + 1}/${MAX_ATTEMPTS}`);
       return NextResponse.json(
         { error: 'Неправильний поточний пароль' },
+        { status: 400 }
+      );
+    }
+
+    // Перевіряємо, що новий пароль відрізняється від поточного
+    const isSamePassword = await verifyPassword(newPassword, user.password);
+    if (isSamePassword) {
+      console.log(`⚠️ API: Новий пароль збігається з поточним для користувача ${user.id}`);
+      return NextResponse.json(
+        { error: 'Новий пароль не може збігатися з поточним' },
         { status: 400 }
       );
     }
@@ -121,7 +165,10 @@ export async function POST(request: NextRequest) {
       data: updateData
     });
 
-    console.log('✅ API: Дані успішно оновлено');
+    // Очищаємо лічильник спроб після успішної зміни
+    passwordChangeAttempts.delete(user.id);
+    
+    console.log(`✅ API: Дані успішно оновлено для користувача ${user.id}`);
     return NextResponse.json({
       success: true,
       message: newUsername && newUsername !== user.username 

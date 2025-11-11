@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { username, password } = await request.json();
+    const body = await request.json();
+    const username = typeof body?.username === 'string' ? body.username.trim() : '';
+    const password = typeof body?.password === 'string' ? body.password : '';
     console.log('👤 API: Перевірка даних для користувача:', payload.username);
 
     // Валідація вхідних даних

@@ -1,9 +1,8 @@
 'use client';
 
-import "@/styles/globals.css";
 import { ReactNode } from "react";
-import Sidebar from "@/components/sidebar";
-import Header from "@/components/header";
+import Sidebar from "@/components/layout/sidebar";
+import Header from "@/components/layout/header";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (

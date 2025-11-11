@@ -1,4 +1,4 @@
-import Providers from '@/components/Providers';
+import Providers from '@/components/layout/Providers';
 import { Montserrat_Alternates } from 'next/font/google';
 
 const montserratAlternates = Montserrat_Alternates({

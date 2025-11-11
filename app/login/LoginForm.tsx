@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import React from 'react';
 import '@/styles/login.css';
 
 export default function LoginForm() {
@@ -31,8 +32,17 @@ export default function LoginForm() {
       console.log('📡 Response received:', { 
         status: response.status, 
         statusText: response.statusText,
-        ok: response.ok 
+        ok: response.ok,
+        contentType: response.headers.get('content-type')
       });
+
+      // Перевіряємо чи відповідь JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('❌ API повернув не JSON:', text.substring(0, 200));
+        throw new Error('Сервер повернув некоректну відповідь. Перевірте консоль сервера.');
+      }
 
       const data = await response.json();
       console.log('📄 Response data:', data);
@@ -69,6 +79,8 @@ export default function LoginForm() {
       setIsLoading(false);
     }
   };
+
+
 
   return (
     <div className="login-page">

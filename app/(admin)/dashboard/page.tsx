@@ -1,4 +1,14 @@
-export default function DashboardPage() {
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
+
+export default async function DashboardPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('admin-token')?.value;
+  if (!token) {
+    redirect('/login');
+  }
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">🏠 Адмін Панель</h1>
