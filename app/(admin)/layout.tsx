@@ -1,5 +1,6 @@
 'use client';
 
+import "@/styles/core/globals.css";
 import { ReactNode } from "react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
